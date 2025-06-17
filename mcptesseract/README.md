@@ -1,6 +1,6 @@
 # Tesseract OCR Server with FastMCP
 
-This project provides a simple yet powerful Tesseract OCR server built using `FastMCP`. It allows you to perform Optical Character Recognition (OCR) on single image files or batch-process entire folders of images.
+This project provides a simple yet powerful Tesseract OCR server built using `FastMCP`. It allows you to perform Optical Character Recognition (OCR) on single image files or batch-process entire folders of images. It also includes tools to analyze word frequencies from the OCR output using an SQLite database.
 
 ## Prerequisites
 
@@ -36,6 +36,10 @@ uv run mcp dev server/tesseract.py
 
 The server will start, and you can interact with it through the web interface that `mcp` provides, or by using it as a library.
 
+## Using with MCP Inspector
+
+When using the MCP Inspector to interact with the tools, you may need to provide a proxy session token. In the MCP Inspector interface, go to "Configurations" and enter your token in the designated field to authorize access.
+
 ## Available Tools
 
 ### `ocr_image_to_text`
@@ -51,3 +55,17 @@ Processes all images in a specified folder and saves the transcriptions to text 
 
 -   **`image_folder`**: Path to the folder containing images.
 -   **`output_folder`** (optional): Folder where transcription files will be saved. Defaults to `transcriptions`.
+
+### `store_word_frequencies`
+
+Stores word frequencies from a transcription file into an SQLite database.
+
+-   **`txt_file_path`**: Path to the text file containing the transcription.
+-   **`db_path`** (optional): Path to the SQLite database file. Defaults to `word_freq.db`.
+
+### `query_word_frequency`
+
+Queries the frequency of a specific word in the SQLite database.
+
+-   **`word`**: The word whose frequency is to be queried.
+-   **`db_path`** (optional): Path to the SQLite database file. Defaults to `word_freq.db`.

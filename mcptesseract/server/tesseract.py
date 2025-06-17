@@ -1,9 +1,12 @@
 import os
 import glob
+import sqlite3
+import re
 from pathlib import Path
 from PIL import Image
 import pytesseract
 from mcp.server.fastmcp import FastMCP
+
 
 # Create MCP instance
 mcp = FastMCP("Tesseract OCR Server")
@@ -115,3 +118,75 @@ def batch_ocr_folder(image_folder: str, output_folder: str = "transcriptions") -
         return f"Error during batch processing: {str(e)}"
 
 
+# Store word frequencies into the database
+@mcp.tool()
+def store_word_frequencies(txt_file_path: str, db_path: str = "word_freq.db") -> str:
+    """
+    Stores word frequencies from a transcription file into the SQLite database.
+    
+    Args:
+        txt_file_path: Path to the text file containing the transcription
+        db_path: Path to the SQLite database file (default: "word_freq.db")
+    
+    Returns:
+        Success message with the number of words stored
+    """
+    if not os.path.exists(txt_file_path):
+        return f"Error: file not found at {txt_file_path}"
+
+    # Read the transcription file
+    with open(txt_file_path, 'r', encoding='utf-8') as f:
+        text = f.read().lower()
+
+    # Tokenize the text into words
+    words = re.findall(r'\w+', text)
+
+    # Connect to the SQLite database
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Create table if it doesn't exist
+    cursor.execute("CREATE TABLE IF NOT EXISTS word_freq (word TEXT PRIMARY KEY, count INTEGER)")
+
+    # Insert or update word frequencies
+    for word in words:
+        cursor.execute("""
+            INSERT INTO word_freq (word, count)
+            VALUES (?, 1)
+            ON CONFLICT(word) DO UPDATE SET count = count + 1
+        """, (word,))
+
+    # Commit changes and close the connection
+    conn.commit()
+    conn.close()
+
+    return f"Stored {len(words)} words from {txt_file_path} into {db_path}"
+
+# Query the frequency of a specific word
+@mcp.tool()
+def query_word_frequency(word: str, db_path: str = "word_freq.db") -> str:
+    """
+    Queries the frequency of a word in the SQLite database.
+    
+    Args:
+        word: The word whose frequency is to be queried
+        db_path: Path to the SQLite database file (default: "word_freq.db")
+    
+    Returns:
+        A message with the word count, or a not-found message
+    """
+    # Connect to the SQLite database
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Query the frequency of the word
+    cursor.execute("SELECT count FROM word_freq WHERE word = ?", (word.lower(),))
+    row = cursor.fetchone()
+
+    # Close the connection
+    conn.close()
+
+    if row:
+        return f"'{word}' appears {row[0]} time(s)."
+    else:
+        return f"'{word}' does not appear in the database."
