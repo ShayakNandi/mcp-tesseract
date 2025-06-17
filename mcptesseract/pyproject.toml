@@ -1,0 +1,12 @@
+[project]
+name = "mcptesseract"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastmcp>=2.8.1",
+    "mcp[cli]>=1.9.4",
+    "pillow>=11.2.1",
+    "pytesseract>=0.3.13",
+]
