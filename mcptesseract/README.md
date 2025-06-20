@@ -40,6 +40,30 @@ The server will start, and you can interact with it through the web interface th
 
 When using the MCP Inspector to interact with the tools, you may need to provide a proxy session token. In the MCP Inspector interface, go to "Configurations" and enter your token in the designated field to authorize access.
 
+## Connecting from Claude Desktop
+
+You can also interact with the OCR server using Claude Desktop as a client. This requires configuring Claude Desktop to connect to the running Tesseract OCR server.
+
+### Troubleshooting `config.claude`
+
+If you encounter issues connecting from Claude Desktop, check your `config.claude` file for the following:
+
+-   **Server Address**: Ensure the server URL is correctly pointing to your running `mcp` server instance. By default, this is often `http://localhost:8000`, but your port may vary.
+    
+    ```
+    # Example configuration
+    server_url = "http://localhost:8000"
+    ```
+
+-   **Authentication Token**: If you have authentication enabled on your server, ensure you have provided the correct token in your configuration. This is similar to the proxy session token used for the MCP Inspector.
+    
+    ```
+    # Example configuration
+    auth_token = "your-secret-token"
+    ```
+
+Make sure the server is running before you attempt to connect from the client. If you continue to experience issues, check the server logs for any error messages.
+
 ## Available Tools
 
 ### `ocr_image_to_text`
