@@ -26,6 +26,18 @@ Before you can run this server, you need to have the following installed on your
     uv sync
     ```
 
+3.  **Activate the virtual environment:**
+    Once the dependencies are installed, activate the virtual environment.
+
+    -   **On Windows:**
+        ```powershell
+        .venv\Scripts\activate
+        ```
+    -   **On macOS/Linux:**
+        ```bash
+        source .venv/bin/activate
+        ```
+
 ## Running the Server
 
 To start the OCR server, run the following command from the `mcptesseract` directory:
@@ -92,4 +104,10 @@ Stores word frequencies from a transcription file into an SQLite database.
 Queries the frequency of a specific word in the SQLite database.
 
 -   **`word`**: The word whose frequency is to be queried.
+-   **`db_path`** (optional): Path to the SQLite database file. Defaults to `word_freq.db`.
+
+### `clear_word_frequencies`
+
+Deletes all word frequencies from the SQLite database.
+
 -   **`db_path`** (optional): Path to the SQLite database file. Defaults to `word_freq.db`.
