@@ -111,3 +111,65 @@ Queries the frequency of a specific word in the SQLite database.
 Deletes all word frequencies from the SQLite database.
 
 -   **`db_path`** (optional): Path to the SQLite database file. Defaults to `word_freq.db`.
+
+### Bibliography Processing Tools
+
+The server also includes tools for processing and managing bibliographic data:
+
+### `process_ground_truth_folder`
+
+Processes text files containing bibliography entries and stores them in a SQLite database.
+
+-   **`folder_path`**: Path to the folder containing ground truth text files. Defaults to `ground_truth`.
+-   **`db_path`** (optional): Path to the SQLite database file. Defaults to `bibliography.db`.
+
+### `display_all_bibliography_entries`
+
+Displays all entries in the bibliography database in either compact or detailed format.
+
+-   **`format`**: Display format - either 'compact' (author, year, title, library code) or 'detailed' (all fields).
+-   **`db_path`** (optional): Path to the SQLite database file. Defaults to `bibliography.db`.
+
+### `query_bibliography`
+
+Searches for specific entries in the bibliography database using natural language queries.
+
+-   **`query`**: Search terms to look for in the bibliography.
+-   **`limit`** (optional): Maximum number of results to return. Defaults to 10.
+-   **`db_path`** (optional): Path to the SQLite database file. Defaults to `bibliography.db`.
+
+### `get_bibliography_stats`
+
+Retrieves statistics about the bibliography database, including total entries, year ranges, top authors, and libraries.
+
+-   **`db_path`** (optional): Path to the SQLite database file. Defaults to `bibliography.db`.
+
+### `search_by_topic`
+
+Searches for books and entries related to a specific topic.
+
+-   **`topic`**: Topic to search for (e.g., "healthcare", "fitness", "pioneer").
+-   **`limit`** (optional): Maximum number of results to return. Defaults to 15.
+-   **`db_path`** (optional): Path to the SQLite database file. Defaults to `bibliography.db`.
+
+### `clear_bibliography`
+
+Deletes all entries from the bibliography database.
+
+-   **`db_path`** (optional): Path to the SQLite database file. Defaults to `bibliography.db`.
+
+## Bibliography Database Schema
+
+The bibliography data is stored in a SQLite database with the following fields:
+
+- `id`: Auto-incrementing primary key
+- `author`: Author name
+- `title`: Book or work title
+- `note`: Additional notes or comments
+- `year`: Publication year
+- `place`: Publication place
+- `publisher`: Publisher name
+- `pages`: Page count or range
+- `library`: Library code
+- `full_entry`: Complete original entry text
+- `created_at`: Timestamp of entry creation

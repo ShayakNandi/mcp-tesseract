@@ -722,3 +722,122 @@ def search_by_topic(topic: str, db_path: str = "bibliography.db", limit: int = 1
         
     except Exception as e:
         return f"Error searching by topic: {str(e)}"
+
+
+@mcp.tool()
+def display_all_bibliography_entries(db_path: str = "bibliography.db", format: str = "detailed") -> str:
+    """
+    Display all entries from the bibliography database.
+    
+    Args:
+        db_path: Path to the SQLite database file
+        format: Output format - 'detailed' or 'compact'
+        
+    Returns:
+        Formatted string containing all bibliography entries
+    """
+    try:
+        if not os.path.exists(db_path):
+            return f"Error: Bibliography database not found at {db_path}"
+        
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Get all entries, ordered by author and year
+        cursor.execute("""
+            SELECT author, title, note, year, place, publisher, pages, library, full_entry
+            FROM bibliography 
+            ORDER BY author, year
+        """)
+        
+        entries = cursor.fetchall()
+        conn.close()
+        
+        if not entries:
+            return "No entries found in the database."
+        
+        output = f"Found {len(entries)} entries in the bibliography database:\n\n"
+        
+        if format == "detailed":
+            # Detailed format with all fields
+            for i, entry in enumerate(entries, 1):
+                author = entry[0] or "Unknown Author"
+                title = entry[1] or "No Title"
+                note = entry[2] or ""
+                year = f" ({entry[3]})" if entry[3] else ""
+                place = entry[4] or ""
+                publisher = entry[5] or ""
+                pages = entry[6] or ""
+                library = entry[7] or ""
+                full_entry = entry[8] or ""
+                
+                output += f"Entry #{i}\n"
+                output += f"{'='*40}\n"
+                output += f"Author: {author}{year}\n"
+                output += f"Title: {title}\n"
+                if place or publisher:
+                    output += f"Published: {place}{': ' + publisher if publisher else ''}\n"
+                if pages:
+                    output += f"Pages: {pages}\n"
+                if library:
+                    output += f"Library: {library}\n"
+                if note:
+                    output += f"Note: {note}\n"
+                output += f"Original Entry: {full_entry}\n"
+                output += "\n"
+        else:
+            # Compact format with essential fields
+            for i, entry in enumerate(entries, 1):
+                author = entry[0] or "Unknown Author"
+                title = entry[1] or "No Title"
+                year = f" ({entry[3]})" if entry[3] else ""
+                library = f" [{entry[7]}]" if entry[7] else ""
+                
+                output += f"{i}. {author}{year} - {title}{library}\n"
+        
+        return output
+        
+    except Exception as e:
+        return f"Error displaying bibliography entries: {str(e)}"
+
+@mcp.tool()
+def clear_bibliography(db_path: str = "bibliography.db") -> str:
+    """
+    Deletes all entries from the bibliography database.
+    
+    Args:
+        db_path: Path to the SQLite database file (default: "bibliography.db")
+    
+    Returns:
+        A success or error message
+    """
+    if not os.path.exists(db_path):
+        return f"Error: Database file not found at {db_path}"
+
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Check if the bibliography table exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='bibliography'")
+        if cursor.fetchone() is None:
+            conn.close()
+            return f"Table 'bibliography' does not exist in {db_path}. Nothing to delete."
+
+        # Get count before deletion
+        cursor.execute("SELECT COUNT(*) FROM bibliography")
+        count = cursor.fetchone()[0]
+        
+        # Delete all entries
+        cursor.execute("DELETE FROM bibliography")
+        conn.commit()
+        
+        # Vacuum the database to reclaim space
+        conn.execute("VACUUM")
+        
+        conn.close()
+        return f"Successfully deleted {count} entries from {db_path}."
+    except sqlite3.Error as e:
+        return f"Database error: {e}"
+    except Exception as e:
+        return f"An error occurred: {e}"
