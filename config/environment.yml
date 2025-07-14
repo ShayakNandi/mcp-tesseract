@@ -1,0 +1,35 @@
+name: ocr-benchmarking
+channels:
+  - defaults
+  - conda-forge
+  - pytorch
+dependencies:
+  - python=3.11
+  - pip
+  - numpy
+  - pandas
+  - pillow
+  - pytesseract
+  - opencv
+  - jupyter
+  - matplotlib
+  - seaborn
+  - scikit-learn
+  - tqdm
+  - pyyaml
+  - requests
+  - pip:
+    - openai
+    - anthropic
+    - google-generativeai
+    - transformers
+    - torch
+    - torchvision
+    - fastapi
+    - uvicorn
+    - python-multipart
+    - jinja2
+    - python-dotenv
+    - tesseract
+    - easyocr
+    - paddleocr 

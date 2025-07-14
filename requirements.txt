@@ -1,0 +1,30 @@
+# Core OCR and MCP dependencies
+pytesseract>=0.3.10
+Pillow>=10.0.0
+mcp>=1.0.0
+fastmcp>=2.0.0
+
+# Environment and configuration
+python-dotenv>=1.0.0
+
+# LLM API clients (optional but recommended for full pipeline)
+openai>=1.0.0
+anthropic>=0.25.0
+google-genai>=0.8.0
+
+# Data processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Additional OCR engines (optional)
+easyocr>=1.7.0
+# paddleocr>=2.7.0  # Uncomment if needed
+
+# Benchmarking and analysis (optional)
+scikit-learn>=1.3.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Web framework (optional for API endpoints)
+fastapi>=0.100.0
+uvicorn>=0.23.0 
