@@ -1,0 +1,79 @@
+# JSON Ground Truth Files
+json_truth/
+*.json
+
+# Config and Environment Files
+config/
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.staging
+*.env
+
+# Database Files
+*.db
+*.sqlite
+*.sqlite3
+
+# Python Cache and Virtual Environment
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+env/
+ENV/
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs and Temporary Files
+logs/
+*.log
+tmp/
+temp/
+.tmp/
+
+# OCR Output Files (if you want to ignore transcriptions)
+transcriptions/
+*.txt
+
+# Results and Benchmarking Data
+results/
+benchmarking-results/
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Package Manager Files
+.uv/
+*.egg-info/
+dist/
+build/
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints/
+
+# pytest cache
+.pytest_cache/
+.coverage
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json 

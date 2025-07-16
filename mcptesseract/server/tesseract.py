@@ -303,7 +303,7 @@ def create_bibliography_table(db_path: str = "bibliography.db") -> str:
         return f"Error creating bibliography table: {str(e)}"
 
 
-def parse_bibliography_entry(entry_text: str) -> dict:
+def parse_bibliography_entry(entry_text: str) -> dict[str, str | int | None] | None:
     """
     Parse a single bibliography entry into structured components.
     
@@ -311,14 +311,14 @@ def parse_bibliography_entry(entry_text: str) -> dict:
         entry_text: Raw text of the bibliography entry
         
     Returns:
-        Dictionary with parsed components matching the JSON format
+        Dictionary with parsed components matching the JSON format, or None if entry is invalid
     """
     entry = entry_text.strip()
     if not entry or entry == "Author Entries":
         return None
     
     # Initialize the result dictionary
-    result = {
+    result: dict[str, str | int | None] = {
         "author": None,
         "title": None,
         "note": None,
@@ -365,7 +365,7 @@ def parse_bibliography_entry(entry_text: str) -> dict:
     else:
         middle_parts = ''
     
-    if library_match and result["library"] in middle_parts:
+    if library_match and result["library"] and isinstance(result["library"], str) and result["library"] in middle_parts:
         middle_parts = middle_parts.replace(result["library"], '').strip('. ')
     
     # Extract title (everything before publication info)
@@ -837,6 +837,635 @@ def clear_bibliography(db_path: str = "bibliography.db") -> str:
         
         conn.close()
         return f"Successfully deleted {count} entries from {db_path}."
+    except sqlite3.Error as e:
+        return f"Database error: {e}"
+    except Exception as e:
+        return f"An error occurred: {e}"
+
+
+# Bibliography Processing Functions
+
+@mcp.tool()
+def create_json_bibliography_table(db_path: str = "bibliography.db") -> str:
+    """
+    Creates the bibliography table optimized for JSON ground truth data.
+    
+    Args:
+        db_path: Path to the SQLite database file
+        
+    Returns:
+        Success or error message
+    """
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Drop existing table if it exists to update schema
+        cursor.execute("DROP TABLE IF EXISTS bibliography")
+        
+        cursor.execute("""
+            CREATE TABLE bibliography (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                lastname TEXT,
+                firstname TEXT,
+                birthyear INTEGER,
+                deathyear INTEGER,
+                title TEXT,
+                city TEXT,
+                publisher TEXT,
+                publishyear INTEGER,
+                pagecount INTEGER,
+                library TEXT,
+                description TEXT,
+                index_num INTEGER,
+                source_file TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Create indexes for better query performance
+        cursor.execute("CREATE INDEX idx_lastname ON bibliography(lastname)")
+        cursor.execute("CREATE INDEX idx_firstname ON bibliography(firstname)")
+        cursor.execute("CREATE INDEX idx_title ON bibliography(title)")
+        cursor.execute("CREATE INDEX idx_publishyear ON bibliography(publishyear)")
+        cursor.execute("CREATE INDEX idx_library ON bibliography(library)")
+        cursor.execute("CREATE INDEX idx_description ON bibliography(description)")
+        
+        conn.commit()
+        conn.close()
+        return f"Successfully created JSON bibliography table with indexes in {db_path}"
+    except Exception as e:
+        return f"Error creating JSON bibliography table: {str(e)}"
+
+
+@mcp.tool()
+def process_json_ground_truth(json_folder: str = "json_truth", db_path: str = "bibliography.db") -> str:
+    """
+    Process all JSON files in the specified folder and store entries in the bibliography database.
+    
+    Args:
+        json_folder: Path to the folder containing JSON ground truth files
+        db_path: Path to the SQLite database file
+        
+    Returns:
+        Summary of processing results
+    """
+    try:
+        if not os.path.exists(json_folder):
+            return f"Error: JSON folder not found at {json_folder}"
+        
+        # Create the JSON bibliography table
+        create_result = create_json_bibliography_table(db_path)
+        if "Error" in create_result:
+            return create_result
+        
+        # Get all JSON files in the folder
+        json_files = glob.glob(os.path.join(json_folder, "*.json"))
+        if not json_files:
+            return f"No JSON files found in {json_folder}"
+        
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        total_entries = 0
+        processed_files = 0
+        failed_entries = 0
+        
+        for json_file in json_files:
+            try:
+                with open(json_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                
+                # Extract the filename for tracking
+                source_filename = Path(json_file).name
+                
+                # Process entries array
+                if 'entries' in data and isinstance(data['entries'], list):
+                    for entry in data['entries']:
+                        try:
+                            cursor.execute("""
+                                INSERT INTO bibliography (
+                                    lastname, firstname, birthyear, deathyear, title, 
+                                    city, publisher, publishyear, pagecount, library, 
+                                    description, index_num, source_file
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """, (
+                                entry.get("lastname"),
+                                entry.get("firstname"),
+                                entry.get("birthyear"),
+                                entry.get("deathyear"),
+                                entry.get("title"),
+                                entry.get("city"),
+                                entry.get("publisher"),
+                                entry.get("publishyear"),
+                                entry.get("pagecount"),
+                                entry.get("library"),
+                                entry.get("description"),
+                                entry.get("index"),
+                                source_filename
+                            ))
+                            total_entries += 1
+                        except Exception as e:
+                            failed_entries += 1
+                            print(f"Failed to insert entry from {source_filename}: {str(e)}")
+                
+                processed_files += 1
+                
+            except Exception as e:
+                print(f"Error processing file {json_file}: {e}")
+        
+        conn.commit()
+        conn.close()
+        
+        return f"JSON Processing complete!\nFiles processed: {processed_files}\nTotal entries stored: {total_entries}\nFailed entries: {failed_entries}"
+        
+    except Exception as e:
+        return f"Error during JSON ground truth processing: {str(e)}"
+
+
+@mcp.tool()
+def query_json_bibliography(query: str, db_path: str = "bibliography.db", limit: int = 20) -> str:
+    """
+    Query the JSON bibliography database with natural language queries.
+    
+    Args:
+        query: Natural language query about books, authors, topics, etc.
+        db_path: Path to the SQLite database file
+        limit: Maximum number of results to return
+        
+    Returns:
+        Formatted results matching the query
+    """
+    try:
+        if not os.path.exists(db_path):
+            return f"Error: Bibliography database not found at {db_path}"
+        
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Convert query to search terms
+        search_terms = query.lower().split()
+        
+        # Build flexible SQL query
+        conditions = []
+        params = []
+        
+        for term in search_terms:
+            # Skip common words
+            if term in ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'what', 'are', 'about']:
+                continue
+            
+            condition = """(
+                LOWER(lastname) LIKE ? OR 
+                LOWER(firstname) LIKE ? OR 
+                LOWER(title) LIKE ? OR 
+                LOWER(description) LIKE ? OR 
+                LOWER(city) LIKE ? OR 
+                LOWER(publisher) LIKE ? OR
+                LOWER(library) LIKE ?
+            )"""
+            conditions.append(condition)
+            search_param = f"%{term}%"
+            params.extend([search_param] * 7)
+        
+        if not conditions:
+            # If no meaningful search terms, return recent entries
+            sql = "SELECT * FROM bibliography ORDER BY created_at DESC LIMIT ?"
+            params = [limit]
+        else:
+            # Combine conditions with OR for broader matching
+            sql = f"""
+                SELECT * FROM bibliography 
+                WHERE {' OR '.join(conditions)}
+                ORDER BY lastname, firstname, publishyear DESC 
+                LIMIT ?
+            """
+            params.append(limit)
+        
+        cursor.execute(sql, params)
+        results = cursor.fetchall()
+        conn.close()
+        
+        if not results:
+            return f"No entries found matching your query: '{query}'"
+        
+        # Format results
+        formatted_results = f"Found {len(results)} entries matching '{query}':\n\n"
+        
+        for i, row in enumerate(results, 1):
+            lastname = row[1] or ""
+            firstname = row[2] or ""
+            author = f"{lastname}, {firstname}".strip(", ") if lastname or firstname else "Unknown Author"
+            birthyear = f" ({row[3]}" if row[3] else ""
+            deathyear = f"-{row[4]})" if row[4] else (")" if birthyear else "")
+            title = row[5] or "No Title"
+            city = row[6] or ""
+            publisher = row[7] or ""
+            publishyear = f" ({row[8]})" if row[8] else ""
+            pagecount = f", {row[9]} p." if row[9] else ""
+            library = f" [{row[10]}]" if row[10] else ""
+            description = row[11] or ""
+            
+            formatted_results += f"{i}. **{author}**{birthyear}{deathyear}\n"
+            formatted_results += f"   Title: {title}{publishyear}\n"
+            if city and publisher:
+                formatted_results += f"   Published: {city}: {publisher}{pagecount}\n"
+            elif city or publisher:
+                formatted_results += f"   Published: {city or publisher}{pagecount}\n"
+            elif pagecount:
+                formatted_results += f"   Pages: {pagecount.strip(', ')}\n"
+            if library:
+                formatted_results += f"   Library: {library.strip('[]')}\n"
+            if description:
+                formatted_results += f"   Description: {description}\n"
+            formatted_results += "\n"
+        
+        return formatted_results
+        
+    except Exception as e:
+        return f"Error querying JSON bibliography: {str(e)}"
+
+
+@mcp.tool()
+def search_by_author(author_name: str, db_path: str = "bibliography.db") -> str:
+    """
+    Search for all works by a specific author (searches both first and last names).
+    
+    Args:
+        author_name: Name to search for (can be first name, last name, or partial)
+        db_path: Path to the SQLite database file
+        
+    Returns:
+        Formatted results for the author
+    """
+    try:
+        if not os.path.exists(db_path):
+            return f"Error: Bibliography database not found at {db_path}"
+        
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        search_param = f"%{author_name.lower()}%"
+        cursor.execute("""
+            SELECT * FROM bibliography 
+            WHERE LOWER(firstname) LIKE ? OR LOWER(lastname) LIKE ?
+            ORDER BY lastname, firstname, publishyear
+        """, [search_param, search_param])
+        
+        results = cursor.fetchall()
+        conn.close()
+        
+        if not results:
+            return f"No entries found for author: '{author_name}'"
+        
+        formatted_results = f"Found {len(results)} entries for '{author_name}':\n\n"
+        
+        for i, row in enumerate(results, 1):
+            lastname = row[1] or ""
+            firstname = row[2] or ""
+            author = f"{lastname}, {firstname}".strip(", ")
+            birthyear = f" ({row[3]}" if row[3] else ""
+            deathyear = f", d. {row[4]})" if row[4] else (")" if birthyear else "")
+            title = row[5] or "No Title"
+            publishyear = f" ({row[8]})" if row[8] else ""
+            
+            formatted_results += f"{i}. {author}{birthyear}{deathyear} - {title}{publishyear}\n"
+        
+        return formatted_results
+        
+    except Exception as e:
+        return f"Error searching by author: {str(e)}"
+
+
+@mcp.tool()
+def search_by_year_range(start_year: int, end_year: int, db_path: str = "bibliography.db") -> str:
+    """
+    Search for works published within a specific year range.
+    
+    Args:
+        start_year: Beginning year of the range
+        end_year: End year of the range
+        db_path: Path to the SQLite database file
+        
+    Returns:
+        Formatted results within the year range
+    """
+    try:
+        if not os.path.exists(db_path):
+            return f"Error: Bibliography database not found at {db_path}"
+        
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT * FROM bibliography 
+            WHERE publishyear BETWEEN ? AND ?
+            ORDER BY publishyear, lastname, firstname
+        """, [start_year, end_year])
+        
+        results = cursor.fetchall()
+        conn.close()
+        
+        if not results:
+            return f"No entries found for years {start_year}-{end_year}"
+        
+        formatted_results = f"Found {len(results)} entries published between {start_year}-{end_year}:\n\n"
+        
+        current_year = None
+        for row in results:
+            lastname = row[1] or ""
+            firstname = row[2] or ""
+            author = f"{lastname}, {firstname}".strip(", ")
+            title = row[5] or "No Title"
+            publishyear = row[8]
+            
+            if publishyear != current_year:
+                if current_year is not None:
+                    formatted_results += "\n"
+                formatted_results += f"**{publishyear}:**\n"
+                current_year = publishyear
+            
+            formatted_results += f"  • {author} - {title}\n"
+        
+        return formatted_results
+        
+    except Exception as e:
+        return f"Error searching by year range: {str(e)}"
+
+
+@mcp.tool()
+def get_json_bibliography_stats(db_path: str = "bibliography.db") -> str:
+    """
+    Get comprehensive statistics about the JSON bibliography database.
+    
+    Args:
+        db_path: Path to the SQLite database file
+        
+    Returns:
+        Detailed statistics about the bibliography entries
+    """
+    try:
+        if not os.path.exists(db_path):
+            return f"Error: Bibliography database not found at {db_path}"
+        
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Get total count
+        cursor.execute("SELECT COUNT(*) FROM bibliography")
+        total_count = cursor.fetchone()[0]
+        
+        # Get entries with publication years
+        cursor.execute("SELECT COUNT(*) FROM bibliography WHERE publishyear IS NOT NULL")
+        with_years = cursor.fetchone()[0]
+        
+        # Get publication year range
+        cursor.execute("SELECT MIN(publishyear), MAX(publishyear) FROM bibliography WHERE publishyear IS NOT NULL")
+        year_range = cursor.fetchone()
+        
+        # Get birth year range
+        cursor.execute("SELECT MIN(birthyear), MAX(birthyear) FROM bibliography WHERE birthyear IS NOT NULL")
+        birth_range = cursor.fetchone()
+        
+        # Get top authors by last name
+        cursor.execute("""
+            SELECT lastname, COUNT(*) as count 
+            FROM bibliography 
+            WHERE lastname IS NOT NULL 
+            GROUP BY lastname 
+            ORDER BY count DESC 
+            LIMIT 10
+        """)
+        top_authors = cursor.fetchall()
+        
+        # Get top libraries
+        cursor.execute("""
+            SELECT library, COUNT(*) as count 
+            FROM bibliography 
+            WHERE library IS NOT NULL 
+            GROUP BY library 
+            ORDER BY count DESC 
+            LIMIT 10
+        """)
+        top_libraries = cursor.fetchall()
+        
+        # Get entries by decade
+        cursor.execute("""
+            SELECT 
+                (publishyear / 10) * 10 as decade,
+                COUNT(*) as count
+            FROM bibliography 
+            WHERE publishyear IS NOT NULL 
+            GROUP BY decade 
+            ORDER BY decade
+        """)
+        decades = cursor.fetchall()
+        
+        # Get source files
+        cursor.execute("""
+            SELECT source_file, COUNT(*) as count 
+            FROM bibliography 
+            WHERE source_file IS NOT NULL 
+            GROUP BY source_file 
+            ORDER BY count DESC
+        """)
+        source_files = cursor.fetchall()
+        
+        conn.close()
+        
+        stats = f"JSON Bibliography Database Statistics:\n"
+        stats += f"{'='*50}\n"
+        stats += f"Total entries: {total_count}\n"
+        stats += f"Entries with publication years: {with_years}\n"
+        
+        if year_range[0] and year_range[1]:
+            stats += f"Publication year range: {year_range[0]} - {year_range[1]}\n"
+        
+        if birth_range[0] and birth_range[1]:
+            stats += f"Author birth year range: {birth_range[0]} - {birth_range[1]}\n"
+        
+        if source_files:
+            stats += f"\nSource Files:\n"
+            for source_file, count in source_files:
+                stats += f"  {source_file}: {count} entries\n"
+        
+        if top_authors:
+            stats += f"\nTop Authors (by last name):\n"
+            for author, count in top_authors:
+                stats += f"  {author}: {count} entries\n"
+        
+        if top_libraries:
+            stats += f"\nTop Libraries:\n"
+            for library, count in top_libraries:
+                stats += f"  {library}: {count} entries\n"
+        
+        if decades:
+            stats += f"\nEntries by Decade:\n"
+            for decade, count in decades:
+                stats += f"  {int(decade)}s: {count} entries\n"
+        
+        return stats
+        
+    except Exception as e:
+        return f"Error getting JSON bibliography statistics: {str(e)}"
+
+
+@mcp.tool()
+def display_all_json_bibliography(db_path: str = "bibliography.db", format: str = "compact", limit: int = 100) -> str:
+    """
+    Display all entries from the JSON bibliography database.
+    
+    Args:
+        db_path: Path to the SQLite database file
+        format: Output format - 'detailed', 'compact', or 'csv'
+        limit: Maximum number of entries to display (default: 100, use 0 for all)
+        
+    Returns:
+        Formatted string containing bibliography entries
+    """
+    try:
+        if not os.path.exists(db_path):
+            return f"Error: Bibliography database not found at {db_path}"
+        
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Get entries, ordered by author and year
+        if limit > 0:
+            cursor.execute("""
+                SELECT * FROM bibliography 
+                ORDER BY lastname, firstname, publishyear
+                LIMIT ?
+            """, [limit])
+        else:
+            cursor.execute("""
+                SELECT * FROM bibliography 
+                ORDER BY lastname, firstname, publishyear
+            """)
+        
+        entries = cursor.fetchall()
+        conn.close()
+        
+        if not entries:
+            return "No entries found in the database."
+        
+        if format == "csv":
+            # CSV format
+            output = "ID,LastName,FirstName,BirthYear,DeathYear,Title,City,Publisher,PublishYear,PageCount,Library,Description,Index,SourceFile\n"
+            for entry in entries:
+                # Escape commas and quotes in CSV
+                row = []
+                for field in entry[:-1]:  # Exclude created_at
+                    if field is None:
+                        row.append("")
+                    else:
+                        field_str = str(field).replace('"', '""')
+                        if ',' in field_str or '"' in field_str:
+                            row.append(f'"{field_str}"')
+                        else:
+                            row.append(field_str)
+                output += ",".join(row) + "\n"
+            return output
+        
+        output = f"Found {len(entries)} entries in the bibliography database"
+        if limit > 0 and len(entries) == limit:
+            output += f" (showing first {limit})"
+        output += ":\n\n"
+        
+        if format == "detailed":
+            # Detailed format with all fields
+            for i, entry in enumerate(entries, 1):
+                lastname = entry[1] or ""
+                firstname = entry[2] or ""
+                author = f"{lastname}, {firstname}".strip(", ") if lastname or firstname else "Unknown Author"
+                birthyear = f" (b. {entry[3]}" if entry[3] else ""
+                deathyear = f", d. {entry[4]})" if entry[4] else (")" if birthyear else "")
+                title = entry[5] or "No Title"
+                city = entry[6] or ""
+                publisher = entry[7] or ""
+                publishyear = entry[8]
+                pagecount = entry[9]
+                library = entry[10] or ""
+                description = entry[11] or ""
+                index_num = entry[12]
+                source_file = entry[13] or ""
+                
+                output += f"Entry #{i} (Index: {index_num})\n"
+                output += f"{'='*40}\n"
+                output += f"Author: {author}{birthyear}{deathyear}\n"
+                output += f"Title: {title}\n"
+                if publishyear:
+                    output += f"Publication Year: {publishyear}\n"
+                if city or publisher:
+                    pub_info = f"{city}: {publisher}" if city and publisher else (city or publisher)
+                    output += f"Published: {pub_info}\n"
+                if pagecount:
+                    output += f"Pages: {pagecount}\n"
+                if library:
+                    output += f"Library: {library}\n"
+                if description:
+                    output += f"Description: {description}\n"
+                if source_file:
+                    output += f"Source File: {source_file}\n"
+                output += "\n"
+        else:
+            # Compact format
+            for i, entry in enumerate(entries, 1):
+                lastname = entry[1] or ""
+                firstname = entry[2] or ""
+                author = f"{lastname}, {firstname}".strip(", ") if lastname or firstname else "Unknown Author"
+                title = entry[5] or "No Title"
+                publishyear = f" ({entry[8]})" if entry[8] else ""
+                library = f" [{entry[10]}]" if entry[10] else ""
+                
+                output += f"{i}. {author} - {title}{publishyear}{library}\n"
+        
+        return output
+        
+    except Exception as e:
+        return f"Error displaying JSON bibliography entries: {str(e)}"
+
+
+@mcp.tool()
+def clear_json_bibliography(db_path: str = "bibliography.db") -> str:
+    """
+    Completely clears the bibliography database - drops the table and recreates it empty.
+    
+    Args:
+        db_path: Path to the SQLite database file
+    
+    Returns:
+        Success or error message
+    """
+    try:
+        if not os.path.exists(db_path):
+            return f"Error: Database file not found at {db_path}"
+
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Check if the bibliography table exists and get count before deletion
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='bibliography'")
+        table_exists = cursor.fetchone() is not None
+        
+        count = 0
+        if table_exists:
+            cursor.execute("SELECT COUNT(*) FROM bibliography")
+            result = cursor.fetchone()
+            count = result[0] if result else 0
+        
+        # Drop the table completely
+        cursor.execute("DROP TABLE IF EXISTS bibliography")
+        
+        # Vacuum the database to reclaim space
+        conn.execute("VACUUM")
+        
+        conn.close()
+        
+        if table_exists:
+            return f"Successfully cleared bibliography database. Removed {count} entries and dropped table from {db_path}."
+        else:
+            return f"Bibliography table did not exist in {db_path}. Database has been cleaned."
     except sqlite3.Error as e:
         return f"Database error: {e}"
     except Exception as e:

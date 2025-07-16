@@ -1,6 +1,6 @@
 # Tesseract OCR Server with FastMCP
 
-This project provides a simple yet powerful Tesseract OCR server built using `FastMCP`. It allows you to perform Optical Character Recognition (OCR) on single image files or batch-process entire folders of images. It also includes tools to analyze word frequencies from the OCR output using an SQLite database.
+This project provides a simple yet powerful Tesseract OCR server built using `FastMCP`. It allows you to perform Optical Character Recognition (OCR) on single image files or batch-process entire folders of images. It also includes tools to analyze word frequencies from the OCR output using an SQLite database, as well as comprehensive bibliography processing tools for both text and JSON ground truth data.
 
 ## Prerequisites
 
@@ -78,6 +78,8 @@ Make sure the server is running before you attempt to connect from the client. I
 
 ## Available Tools
 
+### OCR Tools
+
 ### `ocr_image_to_text`
 
 Performs OCR on a single image file and saves the transcription to a text file.
@@ -91,6 +93,8 @@ Processes all images in a specified folder and saves the transcriptions to text 
 
 -   **`image_folder`**: Path to the folder containing images.
 -   **`output_folder`** (optional): Folder where transcription files will be saved. Defaults to `transcriptions`.
+
+### Word Frequency Analysis Tools
 
 ### `store_word_frequencies`
 
@@ -106,28 +110,88 @@ Queries the frequency of a specific word in the SQLite database.
 -   **`word`**: The word whose frequency is to be queried.
 -   **`db_path`** (optional): Path to the SQLite database file. Defaults to `word_freq.db`.
 
+### `get_all_word_frequencies`
+
+Retrieves all word frequencies from the database, sorted by frequency.
+
+-   **`db_path`** (optional): Path to the SQLite database file. Defaults to `word_freq.db`.
+-   **`limit`** (optional): Maximum number of results to return. Defaults to 20.
+
 ### `clear_word_frequencies`
 
 Deletes all word frequencies from the SQLite database.
 
 -   **`db_path`** (optional): Path to the SQLite database file. Defaults to `word_freq.db`.
 
-### Bibliography Processing Tools
+### JSON Bibliography Processing Tools
 
-The server also includes tools for processing and managing bibliographic data:
+These tools are designed to process structured JSON bibliography data with detailed metadata:
+
+### `process_json_ground_truth`
+
+Processes all JSON files in the specified folder and stores entries in the bibliography database. Automatically creates an optimized database schema for JSON data.
+
+-   **`json_folder`** (optional): Path to the folder containing JSON ground truth files. Defaults to `json_truth`.
+-   **`db_path`** (optional): Path to the SQLite database file. Defaults to `bibliography.db`.
+
+### `create_json_bibliography_table`
+
+Creates the bibliography table optimized for JSON ground truth data with proper indexes for performance.
+
+-   **`db_path`** (optional): Path to the SQLite database file. Defaults to `bibliography.db`.
+
+### `query_json_bibliography`
+
+Query the JSON bibliography database with natural language queries. Searches across all fields including author names, titles, descriptions, publishers, and locations.
+
+-   **`query`**: Natural language query about books, authors, topics, etc.
+-   **`db_path`** (optional): Path to the SQLite database file. Defaults to `bibliography.db`.
+-   **`limit`** (optional): Maximum number of results to return. Defaults to 20.
+
+### `search_by_author`
+
+Search for all works by a specific author (searches both first and last names).
+
+-   **`author_name`**: Name to search for (can be first name, last name, or partial).
+-   **`db_path`** (optional): Path to the SQLite database file. Defaults to `bibliography.db`.
+
+### `search_by_year_range`
+
+Search for works published within a specific year range.
+
+-   **`start_year`**: Beginning year of the range.
+-   **`end_year`**: End year of the range.
+-   **`db_path`** (optional): Path to the SQLite database file. Defaults to `bibliography.db`.
+
+### `get_json_bibliography_stats`
+
+Get comprehensive statistics about the JSON bibliography database including author counts, publication year ranges, library distributions, and more.
+
+-   **`db_path`** (optional): Path to the SQLite database file. Defaults to `bibliography.db`.
+
+### `display_all_json_bibliography`
+
+Display all entries from the JSON bibliography database in various formats.
+
+-   **`db_path`** (optional): Path to the SQLite database file. Defaults to `bibliography.db`.
+-   **`format`** (optional): Output format - 'detailed', 'compact', or 'csv'. Defaults to 'compact'.
+-   **`limit`** (optional): Maximum number of entries to display. Defaults to 100, use 0 for all.
+
+### `clear_json_bibliography`
+
+Completely clears the bibliography database by dropping the table.
+
+-   **`db_path`** (optional): Path to the SQLite database file. Defaults to `bibliography.db`.
+
+### Legacy Bibliography Tools (Text-based)
+
+These tools work with parsed text bibliography entries:
 
 ### `process_ground_truth_folder`
 
 Processes text files containing bibliography entries and stores them in a SQLite database.
 
 -   **`folder_path`**: Path to the folder containing ground truth text files. Defaults to `ground_truth`.
--   **`db_path`** (optional): Path to the SQLite database file. Defaults to `bibliography.db`.
-
-### `display_all_bibliography_entries`
-
-Displays all entries in the bibliography database in either compact or detailed format.
-
--   **`format`**: Display format - either 'compact' (author, year, title, library code) or 'detailed' (all fields).
 -   **`db_path`** (optional): Path to the SQLite database file. Defaults to `bibliography.db`.
 
 ### `query_bibliography`
@@ -138,12 +202,6 @@ Searches for specific entries in the bibliography database using natural languag
 -   **`limit`** (optional): Maximum number of results to return. Defaults to 10.
 -   **`db_path`** (optional): Path to the SQLite database file. Defaults to `bibliography.db`.
 
-### `get_bibliography_stats`
-
-Retrieves statistics about the bibliography database, including total entries, year ranges, top authors, and libraries.
-
--   **`db_path`** (optional): Path to the SQLite database file. Defaults to `bibliography.db`.
-
 ### `search_by_topic`
 
 Searches for books and entries related to a specific topic.
@@ -152,15 +210,39 @@ Searches for books and entries related to a specific topic.
 -   **`limit`** (optional): Maximum number of results to return. Defaults to 15.
 -   **`db_path`** (optional): Path to the SQLite database file. Defaults to `bibliography.db`.
 
-### `clear_bibliography`
+## JSON Bibliography Database Schema
 
-Deletes all entries from the bibliography database.
+The JSON bibliography data is stored in a SQLite database with the following optimized schema:
 
--   **`db_path`** (optional): Path to the SQLite database file. Defaults to `bibliography.db`.
+- `id`: Auto-incrementing primary key
+- `lastname`: Author's last name
+- `firstname`: Author's first name
+- `birthyear`: Author's birth year
+- `deathyear`: Author's death year (if applicable)
+- `title`: Book or work title
+- `city`: Publication city
+- `publisher`: Publisher name
+- `publishyear`: Publication year
+- `pagecount`: Number of pages
+- `library`: Library code where the work is held
+- `description`: Brief description or notes about the work
+- `index_num`: Original index number from source data
+- `source_file`: JSON file the entry was imported from
+- `created_at`: Timestamp of entry creation
 
-## Bibliography Database Schema
+### Database Indexes
 
-The bibliography data is stored in a SQLite database with the following fields:
+The database includes the following indexes for optimal query performance:
+- `idx_lastname` on lastname
+- `idx_firstname` on firstname  
+- `idx_title` on title
+- `idx_publishyear` on publishyear
+- `idx_library` on library
+- `idx_description` on description
+
+## Legacy Bibliography Database Schema
+
+The legacy text-based bibliography data uses this schema:
 
 - `id`: Auto-incrementing primary key
 - `author`: Author name
@@ -173,3 +255,30 @@ The bibliography data is stored in a SQLite database with the following fields:
 - `library`: Library code
 - `full_entry`: Complete original entry text
 - `created_at`: Timestamp of entry creation
+
+## JSON Data Format
+
+The JSON bibliography files should follow this structure:
+
+```json
+{
+  "entries": [
+    {
+      "lastname": "Smith",
+      "firstname": "John",
+      "birthyear": 1850,
+      "deathyear": 1920,
+      "title": "My Life Story",
+      "city": "New York",
+      "publisher": "Random House",
+      "publishyear": 1910,
+      "pagecount": 256,
+      "library": "DLC",
+      "description": "Autobiography of a businessman",
+      "index": 1
+    }
+  ]
+}
+```
+
+All fields are optional except for the `entries` array structure.
