@@ -48,6 +48,51 @@ uv run mcp dev server/tesseract.py
 
 The server will start, and you can interact with it through the web interface that `mcp` provides, or by using it as a library.
 
+## Using the Terminal Clients
+
+This project includes several client options for interacting with the Tesseract server:
+
+### Basic Client (Recommended)
+
+The basic client provides a simple chat interface with keyword-based tool detection. The client automatically spawns its own server process, so you don't need to run the server separately:
+
+**Just run the client:**
+```bash
+cd mcptesseract
+python clients/basic_client.py
+```
+
+The client will automatically start the Tesseract server and connect to it.
+
+The basic client recognizes these commands:
+- `"OCR image image_folder/Bib1.png"` - OCR a single image
+- `"batch OCR folder image_folder"` - Batch process a folder
+- `"store word frequencies from transcriptions/file.txt"` - Store word frequencies
+- `"query word frequency hello"` - Query frequency of a word
+- `"process json bibliography"` - Process JSON bibliography data
+- `"query json bibliography about healthcare"` - Search bibliography
+
+### Simple Client
+
+A simpler version that uses a basic protocol:
+
+```bash
+python clients/simple_client.py
+```
+
+### Advanced Terminal Client
+
+For advanced use with full LLM integration (experimental):
+
+```bash
+python clients/terminal_client.py
+```
+
+**Note**: Make sure your `.env` file contains your OpenAI API key:
+```
+OPENAI_API_KEY=your_api_key_here
+```
+
 ## Using with MCP Inspector
 
 When using the MCP Inspector to interact with the tools, you may need to provide a proxy session token. In the MCP Inspector interface, go to "Configurations" and enter your token in the designated field to authorize access.
