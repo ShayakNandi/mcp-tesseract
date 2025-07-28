@@ -1,0 +1,81 @@
+/* Additional Flask-specific styles */
+
+/* Flask SocketIO connection indicator */
+.socketio-indicator {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    padding: 8px 16px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    border-radius: 20px;
+    font-size: 12px;
+    z-index: 1000;
+}
+
+.socketio-indicator.connected {
+    background: rgba(40, 167, 69, 0.9);
+}
+
+.socketio-indicator.disconnected {
+    background: rgba(220, 53, 69, 0.9);
+}
+
+/* Flask-specific animations */
+@keyframes flask-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(102, 126, 234, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0); }
+}
+
+.flask-processing {
+    animation: flask-pulse 2s infinite;
+}
+
+/* Enhanced Flask button styles */
+.btn-flask {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+}
+
+.btn-flask:hover {
+    background: linear-gradient(135deg, #ee5a24 0%, #ff6b6b 100%);
+}
+
+/* Real-time status indicators */
+.realtime-status {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 8px;
+    animation: flask-pulse 1s infinite;
+}
+
+.realtime-status.processing {
+    background: #ffa500;
+}
+
+.realtime-status.complete {
+    background: #28a745;
+    animation: none;
+}
+
+.realtime-status.error {
+    background: #dc3545;
+    animation: none;
+}
+
+/* Responsive Flask adjustments */
+@media (max-width: 480px) {
+    .socketio-indicator {
+        top: 5px;
+        right: 5px;
+        padding: 4px 8px;
+        font-size: 10px;
+    }
+    
+    .flask-badge {
+        font-size: 0.8rem;
+        padding: 3px 10px;
+    }
+} 

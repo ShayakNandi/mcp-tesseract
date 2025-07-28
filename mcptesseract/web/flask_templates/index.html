@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flask Tesseract OCR Interface</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .flask-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            display: inline-block;
+        }
+
+        .status-bar {
+            background: rgba(255,255,255,0.9);
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #dc3545;
+        }
+
+        .status-dot.connected {
+            background: #28a745;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .section {
+            background: rgba(255,255,255,0.95);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .section h2 {
+            color: #4a5568;
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+
+        .file-upload {
+            border: 3px dashed #e2e8f0;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+        }
+
+        .file-upload:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .file-upload.dragover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .output-section {
+            grid-column: 1 / -1;
+            background: rgba(255,255,255,0.95);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .output-area {
+            background: #f8f9fa;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .message {
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .grid-2, .grid-3 {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Flask Tesseract OCR Interface</h1>
+            <p>Advanced OCR processing with Flask & SocketIO</p>
+            <div class="flask-badge">⚡ Powered by Flask-SocketIO</div>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Connecting...</span>
+            </div>
+            <div>
+                <span id="toolCount">{{ tools|length }} tools available</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- OCR Section -->
+            <div class="section">
+                <h2>📄 OCR Processing</h2>
+                
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab('single-ocr')">Single Image</div>
+                    <div class="tab" onclick="switchTab('batch-ocr')">Batch Process</div>
+                </div>
+
+                <div id="single-ocr" class="tab-content active">
+                    <div class="file-upload" id="fileUpload">
+                        <p>📁 Drop image file here or click to select</p>
+                        <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Image Path:</label>
+                        <input type="text" class="form-control" id="imagePath" placeholder="image_folder/Bib1.png">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Output Folder:</label>
+                        <input type="text" class="form-control" id="outputFolder" value="transcriptions">
+                    </div>
+                    
+                    <button class="btn" onclick="processOCR()">🔍 Process Image</button>
+                </div>
+
+                <div id="batch-ocr" class="tab-content">
+                    <div class="form-group">
+                        <label>Image Folder:</label>
+                        <input type="text" class="form-control" id="batchFolder" value="image_folder">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Output Folder:</label>
+                        <input type="text" class="form-control" id="batchOutputFolder" value="transcriptions">
+                    </div>
+                    
+                    <button class="btn" onclick="processBatchOCR()">📁 Process Folder</button>
+                </div>
+            </div>
+
+            <!-- Word Frequency Section -->
+            <div class="section">
+                <h2>📊 Word Frequency Analysis</h2>
+                
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Text File Path:</label>
+                        <input type="text" class="form-control" id="txtFilePath" placeholder="transcriptions/file.txt">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Query Word:</label>
+                        <input type="text" class="form-control" id="queryWord" placeholder="Enter word">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Limit Results:</label>
+                    <input type="number" class="form-control" id="wordLimit" value="20" min="1" max="100">
+                </div>
+                
+                <div>
+                    <button class="btn" onclick="storeWordFreq()">💾 Store Frequencies</button>
+                    <button class="btn" onclick="queryWordFreq()">🔍 Query Word</button>
+                    <button class="btn" onclick="getAllWordFreq()">📋 Get All</button>
+                    <button class="btn btn-danger" onclick="clearWordFreq()">🗑️ Clear All</button>
+                </div>
+            </div>
+
+            <!-- Bibliography Section -->
+            <div class="section" style="grid-column: 1 / -1;">
+                <h2>📚 Bibliography Processing</h2>
+                
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab('bib-process')">Process</div>
+                    <div class="tab" onclick="switchTab('bib-search')">Search</div>
+                    <div class="tab" onclick="switchTab('bib-stats')">Statistics</div>
+                </div>
+
+                <div id="bib-process" class="tab-content active">
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>JSON Folder:</label>
+                            <input type="text" class="form-control" id="jsonFolder" value="json_truth">
+                        </div>
+                        <div class="form-group">
+                            <label>Display Format:</label>
+                            <select class="form-control" id="displayFormat">
+                                <option value="compact">Compact</option>
+                                <option value="detailed">Detailed</option>
+                                <option value="csv">CSV</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <button class="btn" onclick="processJsonBib()">📥 Process JSON</button>
+                        <button class="btn" onclick="displayAllBib()">📋 Display All</button>
+                        <button class="btn btn-danger" onclick="clearBibliography()">🗑️ Clear Database</button>
+                    </div>
+                </div>
+
+                <div id="bib-search" class="tab-content">
+                    <div class="grid-3">
+                        <div class="form-group">
+                            <label>Search Query:</label>
+                            <input type="text" class="form-control" id="bibQuery" placeholder="Enter search terms">
+                        </div>
+                        <div class="form-group">
+                            <label>Author Name:</label>
+                            <input type="text" class="form-control" id="authorName" placeholder="Enter author name">
+                        </div>
+                        <div class="form-group">
+                            <label>Results Limit:</label>
+                            <input type="number" class="form-control" id="bibLimit" value="20" min="1" max="100">
+                        </div>
+                    </div>
+                    
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Start Year:</label>
+                            <input type="number" class="form-control" id="startYear" placeholder="1800" min="1000" max="2024">
+                        </div>
+                        <div class="form-group">
+                            <label>End Year:</label>
+                            <input type="number" class="form-control" id="endYear" placeholder="2024" min="1000" max="2024">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <button class="btn" onclick="searchBibliography()">🔍 Search Query</button>
+                        <button class="btn" onclick="searchByAuthor()">👤 Search Author</button>
+                        <button class="btn" onclick="searchByYearRange()">📅 Search Years</button>
+                    </div>
+                </div>
+
+                <div id="bib-stats" class="tab-content">
+                    <p>Click the button below to get comprehensive statistics about your bibliography database.</p>
+                    <button class="btn" onclick="getBibStats()">📊 Get Statistics</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Output Section -->
+        <div class="output-section">
+            <h2>📤 Output</h2>
+            <div class="progress-bar" id="progressBar" style="display: none;">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="output-area" id="outputArea">Ready to process your requests using Flask-SocketIO...</div>
+            <div style="margin-top: 15px;">
+                <button class="btn btn-secondary" onclick="clearOutput()">🧹 Clear Output</button>
+                <button class="btn btn-secondary" onclick="downloadOutput()">💾 Download Output</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+
+        // Initialize SocketIO connection
+        function initSocketIO() {
+            socket = io();
+            
+            socket.on('connect', function() {
+                updateStatus(true, 'Connected to Flask server');
+                addMessage('Connected to Flask OCR server', 'success');
+            });
+            
+            socket.on('disconnect', function() {
+                updateStatus(false, 'Disconnected');
+                addMessage('Disconnected from server', 'error');
+            });
+            
+            socket.on('status', function(data) {
+                addMessage(data.message, 'info');
+                showProgress();
+            });
+            
+            socket.on('ocr_result', function(data) {
+                hideProgress();
+                addOutput(data.result);
+                addMessage('Operation completed successfully', 'success');
+            });
+            
+            socket.on('error', function(data) {
+                hideProgress();
+                addMessage(data.message, 'error');
+            });
+        }
+
+        function updateStatus(connected, text) {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            
+            statusDot.className = `status-dot ${connected ? 'connected' : ''}`;
+            statusText.textContent = text;
+        }
+
+        function sendSocketMessage(message) {
+            if (socket && socket.connected) {
+                socket.emit('ocr_request', message);
+            } else {
+                addMessage('Not connected to server', 'error');
+            }
+        }
+
+        // Tab switching
+        function switchTab(tabId) {
+            // Remove active class from all tabs and content
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // Add active class to clicked tab and corresponding content
+            event.target.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        // File upload handling
+        function setupFileUpload() {
+            const fileUpload = document.getElementById('fileUpload');
+            const fileInput = document.getElementById('fileInput');
+            
+            fileUpload.addEventListener('click', () => fileInput.click());
+            
+            fileUpload.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                fileUpload.classList.add('dragover');
+            });
+            
+            fileUpload.addEventListener('dragleave', () => {
+                fileUpload.classList.remove('dragover');
+            });
+            
+            fileUpload.addEventListener('drop', (e) => {
+                e.preventDefault();
+                fileUpload.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFileUpload(files[0]);
+                }
+            });
+            
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFileUpload(e.target.files[0]);
+                }
+            });
+        }
+
+        async function handleFileUpload(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                addMessage(`Uploading ${file.name}...`, 'info');
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                if (response.ok) {
+                    document.getElementById('imagePath').value = result.path;
+                    addMessage(`File uploaded successfully: ${result.filename}`, 'success');
+                } else {
+                    addMessage(`Upload failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                addMessage(`Upload error: ${error.message}`, 'error');
+            }
+        }
+
+        // OCR Functions
+        function processOCR() {
+            const imagePath = document.getElementById('imagePath').value;
+            const outputFolder = document.getElementById('outputFolder').value;
+            
+            if (!imagePath) {
+                addMessage('Please specify an image path', 'error');
+                return;
+            }
+            
+            sendSocketMessage({
+                action: 'ocr_single',
+                image_path: imagePath,
+                output_folder: outputFolder
+            });
+        }
+
+        function processBatchOCR() {
+            const imageFolder = document.getElementById('batchFolder').value;
+            const outputFolder = document.getElementById('batchOutputFolder').value;
+            
+            sendSocketMessage({
+                action: 'ocr_batch',
+                image_folder: imageFolder,
+                output_folder: outputFolder
+            });
+        }
+
+        // Word Frequency Functions
+        function storeWordFreq() {
+            const txtFilePath = document.getElementById('txtFilePath').value;
+            
+            if (!txtFilePath) {
+                addMessage('Please specify a text file path', 'error');
+                return;
+            }
+            
+            sendSocketMessage({
+                action: 'word_frequency',
+                operation: 'store',
+                txt_file_path: txtFilePath
+            });
+        }
+
+        function queryWordFreq() {
+            const word = document.getElementById('queryWord').value;
+            
+            if (!word) {
+                addMessage('Please enter a word to query', 'error');
+                return;
+            }
+            
+            sendSocketMessage({
+                action: 'word_frequency',
+                operation: 'query',
+                word: word
+            });
+        }
+
+        function getAllWordFreq() {
+            const limit = parseInt(document.getElementById('wordLimit').value);
+            
+            sendSocketMessage({
+                action: 'word_frequency',
+                operation: 'get_all',
+                limit: limit
+            });
+        }
+
+        function clearWordFreq() {
+            if (confirm('Are you sure you want to clear all word frequencies?')) {
+                sendSocketMessage({
+                    action: 'word_frequency',
+                    operation: 'clear'
+                });
+            }
+        }
+
+        // Bibliography Functions
+        function processJsonBib() {
+            const jsonFolder = document.getElementById('jsonFolder').value;
+            
+            sendSocketMessage({
+                action: 'bibliography',
+                operation: 'process_json',
+                json_folder: jsonFolder
+            });
+        }
+
+        function searchBibliography() {
+            const query = document.getElementById('bibQuery').value;
+            const limit = parseInt(document.getElementById('bibLimit').value);
+            
+            if (!query) {
+                addMessage('Please enter a search query', 'error');
+                return;
+            }
+            
+            sendSocketMessage({
+                action: 'bibliography',
+                operation: 'query_json',
+                query: query,
+                limit: limit
+            });
+        }
+
+        function searchByAuthor() {
+            const authorName = document.getElementById('authorName').value;
+            
+            if (!authorName) {
+                addMessage('Please enter an author name', 'error');
+                return;
+            }
+            
+            sendSocketMessage({
+                action: 'bibliography',
+                operation: 'search_author',
+                author_name: authorName
+            });
+        }
+
+        function searchByYearRange() {
+            const startYear = parseInt(document.getElementById('startYear').value);
+            const endYear = parseInt(document.getElementById('endYear').value);
+            
+            if (!startYear || !endYear) {
+                addMessage('Please enter both start and end years', 'error');
+                return;
+            }
+            
+            if (startYear > endYear) {
+                addMessage('Start year must be less than end year', 'error');
+                return;
+            }
+            
+            sendSocketMessage({
+                action: 'bibliography',
+                operation: 'search_year_range',
+                start_year: startYear,
+                end_year: endYear
+            });
+        }
+
+        function getBibStats() {
+            sendSocketMessage({
+                action: 'bibliography',
+                operation: 'stats'
+            });
+        }
+
+        function displayAllBib() {
+            const format = document.getElementById('displayFormat').value;
+            
+            sendSocketMessage({
+                action: 'bibliography',
+                operation: 'display_all',
+                format: format,
+                limit: 100
+            });
+        }
+
+        function clearBibliography() {
+            if (confirm('Are you sure you want to clear the entire bibliography database?')) {
+                sendSocketMessage({
+                    action: 'bibliography',
+                    operation: 'clear'
+                });
+            }
+        }
+
+        // Output Functions
+        function addOutput(text) {
+            const outputArea = document.getElementById('outputArea');
+            const timestamp = new Date().toLocaleTimeString();
+            outputArea.textContent += `[${timestamp}] ${text}\n\n`;
+            outputArea.scrollTop = outputArea.scrollHeight;
+        }
+
+        function addMessage(text, type) {
+            const outputArea = document.getElementById('outputArea');
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            outputArea.textContent += `${prefix} [${timestamp}] ${text}\n`;
+            outputArea.scrollTop = outputArea.scrollHeight;
+        }
+
+        function clearOutput() {
+            document.getElementById('outputArea').textContent = 'Output cleared.\n';
+        }
+
+        function downloadOutput() {
+            const output = document.getElementById('outputArea').textContent;
+            const blob = new Blob([output], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `flask_tesseract_output_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function showProgress() {
+            document.getElementById('progressBar').style.display = 'block';
+            document.getElementById('progressFill').style.width = '100%';
+        }
+
+        function hideProgress() {
+            setTimeout(() => {
+                document.getElementById('progressBar').style.display = 'none';
+                document.getElementById('progressFill').style.width = '0%';
+            }, 500);
+        }
+
+        // Initialize everything when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initSocketIO();
+            setupFileUpload();
+        });
+    </script>
+</body>
+</html> 
