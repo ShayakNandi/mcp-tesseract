@@ -16,7 +16,7 @@ import asyncio
 from venv import logger
 from workflow.json_creation import *
 from workflow.txt_creation import *
-from google import genai
+import google.generativeai as genai
 from tools.file_retrieval import *
 
 # sys.path.append('../')
@@ -27,8 +27,8 @@ load_dotenv()
 # Get the root directory
 root_dir = Path.cwd()
 openai_api_key = os.getenv("OPENAI_API_KEY")
-gpt_client = OpenAI(api_key=openai_api_key)
-gemini_client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+gpt_client = OpenAI(api_key=openai_api_key, timeout=300.0)  # 5 minutes timeout
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 # Get the user's path for the images folder assuming all images are stored here in .png format
 source_dir = root_dir / "image_folder"

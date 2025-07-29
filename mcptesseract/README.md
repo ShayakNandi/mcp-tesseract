@@ -1,5 +1,4 @@
 # Tesseract OCR Server with FastMCP
-
 This project provides a simple yet powerful Tesseract OCR server built using `FastMCP`. It allows you to perform Optical Character Recognition (OCR) on single image files or batch-process entire folders of images. It also includes tools to analyze word frequencies from the OCR output using an SQLite database, as well as comprehensive bibliography processing tools for both text and JSON ground truth data.
 
 ## Prerequisites
@@ -229,9 +228,21 @@ For advanced use with full LLM integration (experimental):
 python clients/terminal_client.py
 ```
 
-**Note**: Make sure your `.env` file contains your OpenAI API key:
+**Note**: Make sure your `.env` file contains your API keys and timeout settings:
 ```
 OPENAI_API_KEY=your_api_key_here
+GOOGLE_API_KEY=your_google_api_key_here
+
+# Optional: Timeout settings (in seconds)
+OPENAI_TIMEOUT=300        # 5 minutes for OpenAI API calls
+MCP_TOOL_TIMEOUT=600      # 10 minutes for MCP operations
+FASTAPI_TIMEOUT=600       # 10 minutes for web interface
+```
+
+For large images or complex processing, increase the timeouts:
+```
+OPENAI_TIMEOUT=900        # 15 minutes
+MCP_TOOL_TIMEOUT=1200     # 20 minutes
 ```
 
 ## Using with MCP Inspector
@@ -468,3 +479,63 @@ The JSON bibliography files should follow this structure:
 ```
 
 All fields are optional except for the `entries` array structure.
+
+## ⏱️ Timeout Configuration
+
+For large images or complex OCR processing, you may need to increase timeout settings. The system now supports configurable timeouts:
+
+### Quick Setup
+
+Copy timeout settings to your `.env` file:
+```bash
+# View current timeout settings
+python config/timeout_config.py
+
+# Copy example settings
+cp config/timeout_example.env .env_timeouts
+# Then add the timeout variables to your main .env file
+```
+
+### Timeout Settings
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `OPENAI_TIMEOUT` | 300s (5m) | OpenAI API call timeout |
+| `GOOGLE_AI_TIMEOUT` | 300s (5m) | Google AI API call timeout |
+| `MCP_TOOL_TIMEOUT` | 600s (10m) | MCP tool operation timeout |
+| `FASTAPI_TIMEOUT` | 600s (10m) | FastAPI web interface timeout |
+| `FLASK_TIMEOUT` | 600s (10m) | Flask web interface timeout |
+
+### Recommended Settings
+
+**For Large Images:**
+```env
+OPENAI_TIMEOUT=900      # 15 minutes
+MCP_TOOL_TIMEOUT=1200   # 20 minutes
+```
+
+**For Production:**
+```env
+OPENAI_TIMEOUT=600      # 10 minutes
+MCP_TOOL_TIMEOUT=900    # 15 minutes
+```
+
+**For Quick Testing:**
+```env
+OPENAI_TIMEOUT=120      # 2 minutes
+MCP_TOOL_TIMEOUT=300    # 5 minutes
+```
+
+### Troubleshooting Timeouts
+
+If you encounter timeout errors:
+
+1. **Check your image size** - Large images take longer to process
+2. **Increase timeouts** - Add timeout variables to your `.env` file
+3. **Monitor processing** - Use MCP Inspector to see real-time progress
+4. **Use web interfaces** - FastAPI/Flask show progress indicators
+
+**Common timeout errors:**
+- `asyncio.TimeoutError` - Increase `MCP_TOOL_TIMEOUT`
+- `OpenAI API timeout` - Increase `OPENAI_TIMEOUT`
+- `Connection timeout` - Check your internet connection and API keys

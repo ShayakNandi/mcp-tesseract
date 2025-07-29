@@ -7,8 +7,8 @@ from openai import OpenAI, AsyncOpenAI
 
 # from instructor import from_openai, from_genai, Mode
 
-# from google import genai
-from google.genai import Client
+import google.generativeai as genai
+# from google.genai import Client
 import aiofiles
 import asyncio
 
@@ -113,7 +113,7 @@ def openai_txt2json(path):
 
 
 async def openai_txt2json_async(input_path, output_path):
-    client = from_openai(AsyncOpenAI())
+    client = from_openai(AsyncOpenAI(timeout=300.0))  # 5 minutes timeout
     async with aiofiles.open(input_path, "r") as f:
         text = await f.read()
 
@@ -168,7 +168,7 @@ def openai_img2json(path):
 
 
 async def openai_img2json_async(input_path, output_path):
-    client = from_openai(AsyncOpenAI())
+    client = from_openai(AsyncOpenAI(timeout=300.0))  # 5 minutes timeout
 
     entries = await client.chat.completions.create(
         model="gpt-4o",

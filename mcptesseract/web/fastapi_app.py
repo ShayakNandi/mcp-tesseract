@@ -97,7 +97,11 @@ class MCPTesseractClient:
                 if not await self.connect():
                     return "Error: Unable to connect to MCP server"
             
-            result = await self.session.call_tool(tool_name, args)
+            # Call tool with extended timeout for LLM operations
+            result = await asyncio.wait_for(
+                self.session.call_tool(tool_name, args),
+                timeout=600.0  # 10 minutes timeout for LLM operations
+            )
             
             if result.content:
                 content = result.content[0]

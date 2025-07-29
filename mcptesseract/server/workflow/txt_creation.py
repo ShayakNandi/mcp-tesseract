@@ -9,9 +9,9 @@ from openai import OpenAI, AsyncOpenAI
 
 # from instructor import from_openai, from_genai, Mode
 
-# from google import genai
-from google.genai import Client
-from google.genai import types
+import google.generativeai as genai
+# from google.genai import Client
+# from google.genai import types
 import aiofiles
 import asyncio
 
@@ -47,7 +47,7 @@ async def encode_image_to_base64(image_path):
 
 
 async def openai_img2txt_async(input_img_path, output_path):
-    client = AsyncOpenAI()
+    client = AsyncOpenAI(timeout=300.0)  # 5 minutes timeout
     # Read and base64-encode image
     async with aiofiles.open(input_img_path, "rb") as f:
         img_bytes = await f.read()
@@ -109,7 +109,7 @@ async def gemini_img_txt2txt_async(input_img_path, input_txt_path, output_path):
 
 
 async def openai_img_txt2txt_async(input_img_path, input_txt_path, output_path):
-    client = AsyncOpenAI()
+    client = AsyncOpenAI(timeout=300.0)  # 5 minutes timeout
     input = ""
     async with aiofiles.open(input_txt_path, "r") as f:
         input = await f.read()
@@ -148,6 +148,7 @@ async def openai_img_txt2txt_async(input_img_path, input_txt_path, output_path):
 
 async def openrouter_img2txt_async(input_img_path, output_path):
     client = AsyncOpenAI(
+        timeout=300.0,  # 5 minutes timeout
         base_url="https://openrouter.ai/api/v1",
         api_key=os.getenv("OPENROUTER_API_KEY"),
     )
@@ -189,6 +190,7 @@ async def openrouter_img2txt_async(input_img_path, output_path):
 
 async def openrouter_img_txt2txt_async(input_img_path, input_txt_path, output_path):
     client = AsyncOpenAI(
+        timeout=300.0,  # 5 minutes timeout
         base_url="https://openrouter.ai/api/v1",
         api_key=os.getenv("OPENROUTER_API_KEY"),
     )

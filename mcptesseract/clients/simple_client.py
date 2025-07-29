@@ -16,7 +16,7 @@ async def main():
     )
     
     # Initialize OpenAI client
-    openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"), timeout=300.0)
     
     # Connect to MCP server
     async with stdio_client(server_params) as (read, write):

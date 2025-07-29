@@ -32,7 +32,7 @@ class TerminalMCPClient:
         self.available_tools: Dict[str, Any] = {}
         
         # Initialize OpenAI client
-        self.llm_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.llm_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"), timeout=300.0)
         self.model = "gpt-4o"
         
         self.conversation_history = []

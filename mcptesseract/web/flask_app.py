@@ -60,7 +60,7 @@ class MCPFlaskClient:
             time.sleep(0.1)
         
         future = asyncio.run_coroutine_threadsafe(coro, self._loop)
-        return future.result(timeout=30)  # 30 second timeout
+        return future.result(timeout=600)  # 10 minutes timeout for LLM operations
         
     async def _connect_async(self):
         """Connect to the MCP Tesseract server (async)"""
@@ -101,7 +101,11 @@ class MCPFlaskClient:
                 if not await self._connect_async():
                     return "Error: Unable to connect to MCP server"
             
-            result = await self.session.call_tool(tool_name, args)
+            # Call tool with extended timeout for LLM operations
+            result = await asyncio.wait_for(
+                self.session.call_tool(tool_name, args),
+                timeout=600.0  # 10 minutes timeout for LLM operations
+            )
             
             if result.content:
                 content = result.content[0]
