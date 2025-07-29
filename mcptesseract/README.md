@@ -501,6 +501,7 @@ cp config/timeout_example.env .env_timeouts
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `OPENAI_TIMEOUT` | 300s (5m) | OpenAI API call timeout |
+| `OPENAI_IMG2JSON_TIMEOUT` | 1800s (30m) | OpenAI image-to-JSON processing timeout |
 | `GOOGLE_AI_TIMEOUT` | 300s (5m) | Google AI API call timeout |
 | `MCP_TOOL_TIMEOUT` | 600s (10m) | MCP tool operation timeout |
 | `FASTAPI_TIMEOUT` | 600s (10m) | FastAPI web interface timeout |
@@ -510,8 +511,9 @@ cp config/timeout_example.env .env_timeouts
 
 **For Large Images:**
 ```env
-OPENAI_TIMEOUT=900      # 15 minutes
-MCP_TOOL_TIMEOUT=1200   # 20 minutes
+OPENAI_TIMEOUT=900               # 15 minutes
+OPENAI_IMG2JSON_TIMEOUT=2700     # 45 minutes for complex bibliographies
+MCP_TOOL_TIMEOUT=1200            # 20 minutes
 ```
 
 **For Production:**
@@ -536,6 +538,8 @@ If you encounter timeout errors:
 4. **Use web interfaces** - FastAPI/Flask show progress indicators
 
 **Common timeout errors:**
+- `MCP error -32001: Request timed out` - Increase `MCP_TOOL_TIMEOUT` or specific tool timeout
 - `asyncio.TimeoutError` - Increase `MCP_TOOL_TIMEOUT`
 - `OpenAI API timeout` - Increase `OPENAI_TIMEOUT`
+- `openai_llm_img2json timeout` - Increase `OPENAI_IMG2JSON_TIMEOUT` (for complex bibliographies)
 - `Connection timeout` - Check your internet connection and API keys

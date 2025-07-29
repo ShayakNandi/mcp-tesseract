@@ -37,7 +37,8 @@ img_filepaths = []
 ocr_output_filepaths = []
 
 for path in source_dir.iterdir():
-    if path.suffix.lower() == ".png" and path.is_file():
+    # Support common image formats: PNG, JPG, JPEG
+    if path.suffix.lower() in [".png", ".jpg", ".jpeg"] and path.is_file():
         img_filepaths.append(path)
 print(root_dir)
 print(txt_source_dir)

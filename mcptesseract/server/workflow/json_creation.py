@@ -12,7 +12,7 @@ import google.generativeai as genai
 import aiofiles
 import asyncio
 
-# import os
+import os
 # need to install json-ref even though it's not listed in imports
 
 # script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -142,8 +142,9 @@ async def openai_txt2json_async(input_path, output_path):
 # Takes as input the path to an image and returns formatted JSON following the Entries schema
 # OpenAI version
 def openai_img2json(path):
-    # Create OpenAI client
-    client = instructor.from_openai(OpenAI())
+    # Create OpenAI client with extended timeout for image-to-JSON processing
+    img2json_timeout = float(os.getenv("OPENAI_IMG2JSON_TIMEOUT", "1800.0"))  # 30 minutes default
+    client = instructor.from_openai(OpenAI(timeout=img2json_timeout))
     # Call the API
     entries = client.chat.completions.create(
         model="gpt-4o",
@@ -168,7 +169,9 @@ def openai_img2json(path):
 
 
 async def openai_img2json_async(input_path, output_path):
-    client = from_openai(AsyncOpenAI(timeout=300.0))  # 5 minutes timeout
+    # Use a very large timeout for image-to-JSON processing (especially complex bibliographies)
+    img2json_timeout = float(os.getenv("OPENAI_IMG2JSON_TIMEOUT", "1800.0"))  # 30 minutes default
+    client = from_openai(AsyncOpenAI(timeout=img2json_timeout))
 
     entries = await client.chat.completions.create(
         model="gpt-4o",
