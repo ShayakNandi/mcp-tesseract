@@ -14,6 +14,21 @@ import asyncio
 
 import os
 # need to install json-ref even though it's not listed in imports
+import sys
+from pathlib import Path
+
+# Add parent directory to path to find config module
+current_dir = Path(__file__).parent
+parent_dir = current_dir.parent.parent
+sys.path.insert(0, str(parent_dir))
+
+try:
+    from config.timeout_config import TimeoutConfig
+except ImportError:
+    # Fallback if config module not found
+    class TimeoutConfig:
+        OPENAI_API_TIMEOUT = 3600.0
+        OPENAI_IMG2JSON_TIMEOUT = 5400.0
 
 # script_dir = os.path.dirname(os.path.realpath(__file__))
 # project_root = os.path.abspath(os.path.join(script_dir, ".."))
@@ -113,7 +128,7 @@ def openai_txt2json(path):
 
 
 async def openai_txt2json_async(input_path, output_path):
-    client = from_openai(AsyncOpenAI(timeout=300.0))  # 5 minutes timeout
+    client = from_openai(AsyncOpenAI(timeout=TimeoutConfig.OPENAI_API_TIMEOUT))  # Massively increased timeout
     async with aiofiles.open(input_path, "r") as f:
         text = await f.read()
 
@@ -142,9 +157,8 @@ async def openai_txt2json_async(input_path, output_path):
 # Takes as input the path to an image and returns formatted JSON following the Entries schema
 # OpenAI version
 def openai_img2json(path):
-    # Create OpenAI client with extended timeout for image-to-JSON processing
-    img2json_timeout = float(os.getenv("OPENAI_IMG2JSON_TIMEOUT", "1800.0"))  # 30 minutes default
-    client = instructor.from_openai(OpenAI(timeout=img2json_timeout))
+    # Create OpenAI client with massively increased timeout for image-to-JSON processing
+    client = instructor.from_openai(OpenAI(timeout=TimeoutConfig.OPENAI_IMG2JSON_TIMEOUT))
     # Call the API
     entries = client.chat.completions.create(
         model="gpt-4o",
@@ -169,9 +183,8 @@ def openai_img2json(path):
 
 
 async def openai_img2json_async(input_path, output_path):
-    # Use a very large timeout for image-to-JSON processing (especially complex bibliographies)
-    img2json_timeout = float(os.getenv("OPENAI_IMG2JSON_TIMEOUT", "1800.0"))  # 30 minutes default
-    client = from_openai(AsyncOpenAI(timeout=img2json_timeout))
+    # Use massively increased timeout for image-to-JSON processing (especially complex bibliographies)
+    client = from_openai(AsyncOpenAI(timeout=TimeoutConfig.OPENAI_IMG2JSON_TIMEOUT))
 
     entries = await client.chat.completions.create(
         model="gpt-4o",

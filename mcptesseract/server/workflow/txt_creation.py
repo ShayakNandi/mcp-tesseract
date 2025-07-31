@@ -14,6 +14,21 @@ import google.generativeai as genai
 # from google.genai import types
 import aiofiles
 import asyncio
+import os
+import sys
+from pathlib import Path
+
+# Add parent directory to path to find config module
+current_dir = Path(__file__).parent
+parent_dir = current_dir.parent.parent
+sys.path.insert(0, str(parent_dir))
+
+try:
+    from config.timeout_config import TimeoutConfig
+except ImportError:
+    # Fallback if config module not found
+    class TimeoutConfig:
+        OPENAI_API_TIMEOUT = 3600.0
 
 prompt_llm = """
 Your task is to transcribe this image of a historical bibliography page as faithfully as possible.
@@ -47,7 +62,7 @@ async def encode_image_to_base64(image_path):
 
 
 async def openai_img2txt_async(input_img_path, output_path):
-    client = AsyncOpenAI(timeout=300.0)  # 5 minutes timeout
+    client = AsyncOpenAI(timeout=TimeoutConfig.OPENAI_API_TIMEOUT)  # Massively increased timeout
     # Read and base64-encode image
     async with aiofiles.open(input_img_path, "rb") as f:
         img_bytes = await f.read()
@@ -109,7 +124,7 @@ async def gemini_img_txt2txt_async(input_img_path, input_txt_path, output_path):
 
 
 async def openai_img_txt2txt_async(input_img_path, input_txt_path, output_path):
-    client = AsyncOpenAI(timeout=300.0)  # 5 minutes timeout
+    client = AsyncOpenAI(timeout=TimeoutConfig.OPENAI_API_TIMEOUT)  # Massively increased timeout
     input = ""
     async with aiofiles.open(input_txt_path, "r") as f:
         input = await f.read()
@@ -148,7 +163,7 @@ async def openai_img_txt2txt_async(input_img_path, input_txt_path, output_path):
 
 async def openrouter_img2txt_async(input_img_path, output_path):
     client = AsyncOpenAI(
-        timeout=300.0,  # 5 minutes timeout
+        timeout=TimeoutConfig.OPENAI_API_TIMEOUT,  # Massively increased timeout
         base_url="https://openrouter.ai/api/v1",
         api_key=os.getenv("OPENROUTER_API_KEY"),
     )
@@ -190,7 +205,7 @@ async def openrouter_img2txt_async(input_img_path, output_path):
 
 async def openrouter_img_txt2txt_async(input_img_path, input_txt_path, output_path):
     client = AsyncOpenAI(
-        timeout=300.0,  # 5 minutes timeout
+        timeout=TimeoutConfig.OPENAI_API_TIMEOUT,  # Massively increased timeout
         base_url="https://openrouter.ai/api/v1",
         api_key=os.getenv("OPENROUTER_API_KEY"),
     )

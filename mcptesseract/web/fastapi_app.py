@@ -13,6 +13,9 @@ from fastapi.requests import Request
 from mcp import ClientSession, StdioServerParameters  
 from mcp.client.stdio import stdio_client
 from mcp.types import TextContent
+import sys
+sys.path.append('..')
+from server.mcp_connection_manager import MCPConnectionManager, ConnectionConfig, connect_to_tesseract_server
 import uvicorn
 
 # Set up logging
@@ -55,87 +58,60 @@ manager = ConnectionManager()
 
 class MCPTesseractClient:
     def __init__(self):
-        self.session = None
-        self.tools = []
-        self._stdio_context = None
-        self._session_context = None
+        # Use the robust connection manager
+        self.connection_manager: Optional[MCPConnectionManager] = None
         
     async def connect(self):
-        """Connect to the MCP Tesseract server"""
+        """Connect to the MCP Tesseract server using robust connection manager"""
         try:
-            server_params = StdioServerParameters(
-                command="uv",
-                args=["run", "mcp", "run", "server/tesseract.py"]
+            # Create connection manager with custom config for longer timeouts
+            config = ConnectionConfig(
+                connection_timeout=60.0,    # 1 minute for connection
+                ready_timeout=120.0,        # 2 minutes to be ready
+                tool_discovery_timeout=30.0, # 30s for tool discovery
+                max_retries=5,              # More retries
+                retry_delay=3.0             # Longer retry delay
             )
             
-            # Store the context managers for proper cleanup
-            self._stdio_context = stdio_client(server_params)
-            self.read, self.write = await self._stdio_context.__aenter__()
-            
-            self._session_context = ClientSession(self.read, self.write)
-            self.session = await self._session_context.__aenter__()
-            await self.session.initialize()
-            
-            # Get available tools
-            tools_response = await self.session.list_tools()
-            self.tools = [{"name": tool.name, "description": tool.description} for tool in tools_response.tools]
-            
-            logger.info(f"Connected to MCP server. Available tools: {[tool['name'] for tool in self.tools]}")
+            logger.info("🔌 Connecting to MCP server with robust connection manager...")
+            self.connection_manager = await connect_to_tesseract_server(config)
+            logger.info("✅ MCP server connected and ready!")
             return True
+            
         except Exception as e:
             logger.error(f"Failed to connect to MCP server: {e}")
-            # Clean up on failure
-            await self._cleanup()
             return False
     
     async def call_tool(self, tool_name: str, args: dict) -> str:
-        """Call a tool on the MCP server"""
+        """Call a tool on the MCP server using robust connection manager"""
         try:
-            if not self.session:
-                # Try to reconnect
-                logger.info("No session available, attempting to reconnect...")
+            if not self.connection_manager or not self.connection_manager.is_ready():
+                logger.info("Connection not ready, attempting to connect...")
                 if not await self.connect():
                     return "Error: Unable to connect to MCP server"
             
-            # Call tool with extended timeout for LLM operations
-            result = await asyncio.wait_for(
-                self.session.call_tool(tool_name, args),
-                timeout=600.0  # 10 minutes timeout for LLM operations
+            # Use the robust call_tool_safe method with massive timeout
+            return await self.connection_manager.call_tool_safe(
+                tool_name, 
+                args, 
+                timeout=7200.0  # 2 HOURS timeout for LLM operations
             )
             
-            if result.content:
-                content = result.content[0]
-                if isinstance(content, TextContent):
-                    return content.text
-                else:
-                    return str(content)
-            return "No result returned"
         except Exception as e:
             logger.error(f"Error calling tool {tool_name}: {e}")
             return f"Error: {str(e)}"
     
-    async def _cleanup(self):
-        """Internal cleanup method"""
-        try:
-            if self._session_context:
-                await self._session_context.__aexit__(None, None, None)
-                self._session_context = None
-        except Exception as e:
-            logger.debug(f"Error cleaning up session: {e}")
-        
-        try:
-            if self._stdio_context:
-                await self._stdio_context.__aexit__(None, None, None)
-                self._stdio_context = None
-        except Exception as e:
-            logger.debug(f"Error cleaning up stdio: {e}")
-        
-        self.session = None
-    
     async def disconnect(self):
         """Disconnect from the MCP server"""
-        logger.info("Disconnecting from MCP server...")
-        await self._cleanup()
+        if self.connection_manager:
+            await self.connection_manager.disconnect()
+            self.connection_manager = None
+    
+    def get_tools(self):
+        """Get available tools"""
+        if self.connection_manager:
+            return self.connection_manager.get_tools()
+        return []
 
 # Global MCP client instance
 mcp_client = MCPTesseractClient()

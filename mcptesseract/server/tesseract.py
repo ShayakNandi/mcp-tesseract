@@ -23,11 +23,26 @@ from tools.file_retrieval import *
 # optional
 from dotenv import load_dotenv
 
+# Fix import path for config module
+import sys
+from pathlib import Path
+current_dir = Path(__file__).parent
+parent_dir = current_dir.parent
+sys.path.insert(0, str(parent_dir))
+
+try:
+    from config.timeout_config import TimeoutConfig
+except ImportError:
+    # Fallback if config module not found
+    class TimeoutConfig:
+        OPENAI_API_TIMEOUT = 3600.0
+
 load_dotenv()
 # Get the root directory
 root_dir = Path.cwd()
 openai_api_key = os.getenv("OPENAI_API_KEY")
-gpt_client = OpenAI(api_key=openai_api_key, timeout=300.0)  # 5 minutes timeout
+# Use massively increased timeout
+gpt_client = OpenAI(api_key=openai_api_key, timeout=TimeoutConfig.OPENAI_API_TIMEOUT)
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 # Get the user's path for the images folder assuming all images are stored here in .png format
